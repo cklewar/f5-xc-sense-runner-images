@@ -1,0 +1,50 @@
+name: F5XC CI/CD container image
+on: push
+jobs:
+  f5-xc-sense8-container-img-build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub."
+      - run: echo "The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      - name: Check out repository and submodules
+        uses: actions/checkout@v3
+        with:
+          ref: main
+      - name: Docker Build
+        id: build
+        run: docker build --label project-url="${{ secrets.F5XC_AZURECR_IO_PROJECT_URL}}" --tag "${{ secrets.F5XC_AZURECR_IO_TAG }}" .
+        continue-on-error: false
+      - name: Upload image
+        id: upload
+        uses: ishworkh/docker-image-artifact-upload@v1
+        with:
+          image: ${{ secrets.F5XC_AZURECR_IO_TAG }}
+          retention_days: "1"
+      - run: echo "This job's status is ${{ job.status }}."
+  f5-xc-sense8-container-img-push:
+    runs-on: ubuntu-latest
+    needs: [ f5-xc-sense8-container-img-build ]
+    steps:
+      - run: echo "The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub."
+      - run: echo "The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      - name: Download image
+        id: download
+        uses: ishworkh/docker-image-artifact-download@v1
+        with:
+          image: ${{ secrets.F5XC_AZURECR_IO_TAG }}
+      - name: Login to ACR
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.F5XC_AZURECR_IO_SERVER }}
+          username: ${{ secrets.F5XC_AZURECR_IO_USER }}
+          password: ${{ secrets.F5XC_AZURECR_IO_PASSWORD }}
+          logout: true
+        continue-on-error: false
+      - run: echo "This job's status is ${{ job.status }}."
+      - name: Docker Push
+        id: push
+        run: docker push "${{ secrets.F5XC_AZURECR_IO_TAG }}"
+        continue-on-error: false
+      - run: echo "This job's status is ${{ job.status }}."
